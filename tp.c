@@ -19,10 +19,11 @@
 
 //int main(int, char **);
 
-char vers[]  = "tp 1.02 (02.08.1994)";
-char usage[] = "Usage: tp [-HNBFPXTD?] <Filename>";
+char vers[]  = "tp 1.02a";
+char usage[] = "Usage: tp [-hnbfpxtd?] [FILE]...\n";
 
 short hex    = FALSE,
+      octal  = FALSE,
       numb   = FALSE,
       b      = FALSE,
       form   = FALSE,
@@ -40,7 +41,8 @@ int param( int ac, char *av[] )
       {
          switch ( tolower( av[i][j] ) )
          {
-            case 'h' : hex    = TRUE; break;
+            case 'o' : octal  = TRUE; break;
+            case 'h' : hex    = TRUE; octal = FALSE; break;
             case 'n' : numb   = TRUE; break;
             case 'b' : b      = TRUE; break;
             case 'f' : form   = TRUE; break;
@@ -51,16 +53,19 @@ int param( int ac, char *av[] )
             case '?' :
             {
                printf( "\n%s -  A Better Type.\n", vers );
-               puts( usage );
-               puts( "      H - Hex listing." );
-               puts( "      N - Display line numbers." );
-               puts( "      B - Display filename at begining of text." );
-               puts( "      F - Formfeed at end of text." );
-               printf( "      P - Prompt after every %d lines.\n", PROMPTLINES );
-               puts( "      X - Filtered text." );
-               puts( "      T - Tail of text." );
-               puts( "      D - Detab text." );
-               puts( "      ? - This text." );
+               printf( "%s", usage );
+               puts( "  -h\tHex listing" );
+               puts( "  -n\tDisplay line numbers" );
+               puts( "  -b\tDisplay filename at begining of text" );
+               puts( "  -f\tDisplay formfeed at end of text" );
+               printf( "  -p\tPrompt after every %d lines\n", PROMPTLINES );
+               puts( "  -x\tFilter non-printable characters" );
+               puts( "  -t\tShow only tail of text" );
+               puts( "  -d\tRemove tab characters" );
+               puts( "  -?\tDisplay this text and exit" );
+               puts( "\nExamples:" );
+               puts( "  tp -ph f.bin\tOutput hex dump of f.bin to standard out and prompt every 22 lines" );
+               puts( "  tp -xf f.txt\tOutput contents of f.txt to standard out, filter unprintable text, then send a formfeed" );
                return( FALSE );
             }
             default  : printf( "\nIllegal Option: %lc\n", av[i][j] );
@@ -70,7 +75,7 @@ int param( int ac, char *av[] )
 
    if ( ( ac < 2 ) || ( !retcode ) )
    {
-      puts( usage );
+      fputs( usage, stderr );
       return( FALSE );
    }
 }
@@ -101,7 +106,7 @@ int tp( char *fname )
 
    if ( tail )
    {
-      if ( hex )
+      if ( hex || octal )
       {
 /*       fseek( in, 0, 2 );
          i = ftell( in );
@@ -132,7 +137,7 @@ int tp( char *fname )
       }
    }
 
-   if ( hex )
+   if ( hex || octal )
    {
       line--;
       x = numb = FALSE;
@@ -140,23 +145,30 @@ int tp( char *fname )
 
    while ( ( ch = fgetc( in ) ) != -1 )              /* Maine loop! */
    {
-      if ( ( numb ) && ( pch == '\n' ) )  printf( "%4ld ", line );
+      if ( ( numb ) && ( pch == '\n' ) )  printf( "%6ld  ", line );
 
       pch = ch;
       col ++;
 
-      if ( hex )
+      if ( hex || octal )
       {
          hbuff[bpos++] = ch;
          if ( bpos == 16 )
          {
-            printf( "%05lx: ", line );
+            if ( hex ) printf( "%08lx  ", line ) ; else printf( "%08lo  ", line );
             bpos = 0;
             line += 16;
             pline++;
-            for ( i = 0; i < 16; i++ )  printf( "%02lx ", hbuff[i] );
+            for ( i = 0; i < 8; i++ )  if ( hex ) printf( "%02x ", hbuff[i] ); else printf( "%06o ", hbuff[i] );
             fputc( ' ', stdout );
-            for ( i = 0; i < 16; i++ )  fputc( filter( hbuff[i] ), stdout );
+            for ( i = 8; i < 16; i++ )  if ( hex ) printf( "%02x ", hbuff[i] ); else printf( "%06o ", hbuff[i] );
+            if ( hex )
+            {
+               fputc( ' ', stdout );
+               fputc( '|', stdout );
+               for ( i = 0; i < 16; i++ )  fputc( filter( hbuff[i] ), stdout );
+               fputc( '|', stdout );
+            }
             fputc( '\n', stdout );
             ch = '\n';
          }
@@ -189,35 +201,40 @@ int tp( char *fname )
             fflush( stdin );
 
             fgets( buff, 15, stdin );
-            if ( buff[0] == '-' )
+            for ( i = 0; i < (int)strlen( buff ); i++ )
             {
-               for ( i = 1; i < (int)strlen( buff ); i++ )
+               buff[i] = (char)tolower( buff[i] );
+               switch ( buff[i] )
                {
-                  buff[i] = (char)tolower( buff[i] );
-                  switch ( buff[i] )
-                  {
-                     case 'n' : numb   = !numb;   break;
-                     case 'h' : hex    = !hex;    break;
-                     case 'b' : b      = !b;      break;
-                     case 'f' : form   = !form;   break;
-                     case 'p' : prompt = !prompt; break;
-                     case 'x' : x      = !x;      break;
-                     case 'd' : detab  = !detab;
-                  }
+                  case 'n' : numb   = !numb;   break;
+                  case 'o' : octal  = !octal;  break;
+                  case 'h' : hex    = !hex;    break;
+                  case 'b' : b      = !b;      break;
+                  case 'f' : form   = !form;   break;
+                  case 'p' : prompt = !prompt; break;
+                  case 'x' : x      = !x;      break;
+                  case 'd' : detab  = !detab;
                }
             }
-            if ( ( buff[0] == 'n' ) || ( buff[0] == 'q' ) )  break;
+            if ( buff[0] == 'q' )  break;
          }
       }
    }
 
-   if ( ( hex ) && ( buff[0] != 'n' ) && ( bpos != 0 ) )
+   if ( ( hex || octal ) && ( buff[0] != 'n' ) && ( bpos != 0 ) )
    {
-      printf( "%05lx: ", line );
-      for ( i = 0; i < bpos; i++)  printf( "%02lx ", hbuff[i] );
+      if ( hex ) printf( "%08lx  ", line ); else printf( "%08lo  ", line );
+      for ( i = 0; i < bpos; i++)  if ( hex ) printf( "%02x ", hbuff[i] ); else printf( "%06o ", hbuff[i] );
       fputc( ' ', stdout );
       for ( i = 0; i < ( 3 * ( 16 - bpos ) ); i++)  fputc( ' ', stdout );
-      for ( i = 0; i < bpos; i++ )  fputc( filter( hbuff[i] ), stdout );
+      if ( hex )
+      {
+         fputc( ' ', stdout );
+         fputc( '|', stdout );
+         for ( i = 0; i < bpos; i++ )  fputc( filter( hbuff[i] ), stdout );
+         for ( i = 0; i < bpos; i++ )  fputc( ' ', stdout );
+         fputc( '|', stdout );
+      }
       fputc( '\n', stdout );
    }
 
