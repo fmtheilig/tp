@@ -235,6 +235,7 @@ int tp( char *fname )
             if ( buff[0] == 'q' )  break;
          }
       }
+       if ( col == size.ws_col ) pline++;
    }
 
    if ( ( hex || octal ) && ( buff[0] != 'n' ) && ( bpos != 0 ) )
