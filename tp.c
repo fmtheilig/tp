@@ -8,18 +8,20 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 
 #ifndef FALSE
    #define FALSE 0
    #define TRUE !FALSE
 #endif
-#define PROMPTLINES 22
+//#define PROMPTLINES 22
 #define filter(x)  ( (x >= ' ') && (x <= '~') ? x : '.' )
 #define SPACE 8
 
 //int main(int, char **);
 
-char vers[]  = "tp 1.02a";
+char vers[]  = "tp 1.02b";
 char usage[] = "Usage: tp [-hnbfpxtd?] [FILE]...\n";
 
 short hex    = FALSE,
@@ -31,6 +33,26 @@ short hex    = FALSE,
       x      = FALSE,
       tail   = FALSE,
       detab  = FALSE;
+
+int helpscreen( )
+{
+   printf( "\n%s -  A Better Type.\n", vers );
+   printf( "%s", usage );
+   puts( "  -h\tHex listing" );
+   puts( "  -h\tOctal listing" );
+   puts( "  -n\tDisplay line numbers" );
+   puts( "  -b\tDisplay filename at begining of text" );
+   puts( "  -f\tDisplay formfeed at end of text" );
+   puts( "  -p\tPrompt after every screen lines" );
+   puts( "  -x\tFilter non-printable characters" );
+   puts( "  -t\tShow only tail of text" );
+   puts( "  -d\tRemove tab characters" );
+   puts( "  -?\tDisplay this text and exit" );
+   puts( "\nExamples:" );
+   puts( "  tp -ph f.bin\tOutput hex dump of f.bin to standard out and prompt every screen lines" );
+   puts( "  tp -xf f.txt\tOutput contents of f.txt to standard out, filter unprintable text, then send a formfeed" );
+   return( FALSE );
+}
 
 int param( int ac, char *av[] )
 {
@@ -50,24 +72,9 @@ int param( int ac, char *av[] )
             case 'x' : x      = TRUE; break;
             case 't' : tail   = TRUE; break;
             case 'd' : detab  = TRUE; break;
-            case '?' :
-            {
-               printf( "\n%s -  A Better Type.\n", vers );
-               printf( "%s", usage );
-               puts( "  -h\tHex listing" );
-               puts( "  -n\tDisplay line numbers" );
-               puts( "  -b\tDisplay filename at begining of text" );
-               puts( "  -f\tDisplay formfeed at end of text" );
-               printf( "  -p\tPrompt after every %d lines\n", PROMPTLINES );
-               puts( "  -x\tFilter non-printable characters" );
-               puts( "  -t\tShow only tail of text" );
-               puts( "  -d\tRemove tab characters" );
-               puts( "  -?\tDisplay this text and exit" );
-               puts( "\nExamples:" );
-               puts( "  tp -ph f.bin\tOutput hex dump of f.bin to standard out and prompt every 22 lines" );
-               puts( "  tp -xf f.txt\tOutput contents of f.txt to standard out, filter unprintable text, then send a formfeed" );
-               return( FALSE );
-            }
+            case '?' : return ( helpscreen() );
+            case '-' : if ( strcmp( &av[i][j], "-help" ) == 0 ) return ( helpscreen() );
+                        else printf( "\nIllegal Option: %lc\n", av[i][j] );
             default  : printf( "\nIllegal Option: %lc\n", av[i][j] );
          }
       }
@@ -88,7 +95,9 @@ int tp( char *fname )
    char buff[16];
 // char error[60];
    int hbuff[16], bpos = 0, pch = '\n';
+   int PROMPTLINES = 22;
    FILE *in;
+   struct winsize size;
 
    if ( fname[0] == '-' )  return( TRUE );
 
@@ -103,6 +112,9 @@ int tp( char *fname )
       pline += 2;
       printf( "\n*** File %s ***\n", fname );
    }
+
+   ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
+   PROMPTLINES = size.ws_row-1;
 
    if ( tail )
    {
@@ -159,9 +171,9 @@ int tp( char *fname )
             bpos = 0;
             line += 16;
             pline++;
-            for ( i = 0; i < 8; i++ )  if ( hex ) printf( "%02x ", hbuff[i] ); else printf( "%06o ", hbuff[i] );
+            for ( i = 0; i < 8; i++ )  if ( hex ) printf( "%02x ", hbuff[i] ); else printf( "%04o", hbuff[i] );
             fputc( ' ', stdout );
-            for ( i = 8; i < 16; i++ )  if ( hex ) printf( "%02x ", hbuff[i] ); else printf( "%06o ", hbuff[i] );
+            for ( i = 8; i < 16; i++ )  if ( hex ) printf( "%02x ", hbuff[i] ); else printf( "%04o", hbuff[i] );
             if ( hex )
             {
                fputc( ' ', stdout );
@@ -199,6 +211,10 @@ int tp( char *fname )
             printf( " -- More -- " );
             fflush( stdout );
             fflush( stdin );
+            
+            ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
+            PROMPTLINES = size.ws_row-1;
+
 
             fgets( buff, 15, stdin );
             for ( i = 0; i < (int)strlen( buff ); i++ )
@@ -224,7 +240,7 @@ int tp( char *fname )
    if ( ( hex || octal ) && ( buff[0] != 'n' ) && ( bpos != 0 ) )
    {
       if ( hex ) printf( "%08lx  ", line ); else printf( "%08lo  ", line );
-      for ( i = 0; i < bpos; i++)  if ( hex ) printf( "%02x ", hbuff[i] ); else printf( "%06o ", hbuff[i] );
+      for ( i = 0; i < bpos; i++)  if ( hex ) printf( "%02x ", hbuff[i] ); else printf( "%04o", hbuff[i] );
       fputc( ' ', stdout );
       for ( i = 0; i < ( 3 * ( 16 - bpos ) ); i++)  fputc( ' ', stdout );
       if ( hex )
