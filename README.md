@@ -11,9 +11,9 @@ to be more GNU-like and maybe even useful.
 	-n		Display line numbers
     -b		Display filename at begining of text
     -f		Display formfeed at end of text
-    -p		Prompt after every 22 lines
+    -p		Prompt after every page
             All options can be toggled at the more prompt, and you can enter 'q' to quit
     -x		Filter non-printable characters
-    -t		Show only tail (last 22 lines) of text
+    -t		Show only tail (last page) of text
     -d		Remove tab characters
     -?		Display this text and exit

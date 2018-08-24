@@ -22,7 +22,7 @@
 //int main(int, char **);
 
 char vers[]  = "tp 1.02b";
-char usage[] = "Usage: tp [-hnbfpxtd?] [FILE]...\n";
+char usage[] = "Usage: tp [-honbfpxtd?] [FILE]...\n";
 
 short hex    = FALSE,
       octal  = FALSE,
@@ -39,7 +39,7 @@ int helpscreen( )
    printf( "\n%s -  A Better Type.\n", vers );
    printf( "%s", usage );
    puts( "  -h\tHex listing" );
-   puts( "  -h\tOctal listing" );
+   puts( "  -o\tOctal listing" );
    puts( "  -n\tDisplay line numbers" );
    puts( "  -b\tDisplay filename at begining of text" );
    puts( "  -f\tDisplay formfeed at end of text" );
@@ -256,7 +256,7 @@ int tp( char *fname )
    }
 
    if ( form )  fputc( '\f', stdout );
-// fflush( in );
+
    fclose( in );
 
    return( buff[0] != 'q' );
