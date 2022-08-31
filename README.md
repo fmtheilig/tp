@@ -1,4 +1,4 @@
-#tp - A Better Type  
+**tp - A Better Type**
 Fred Theilig  
 
 Way back in my college days we programmed on a Prime minicomputer. I had little experience with or access to anything Unix-like and the Prime was rather
